@@ -125,7 +125,7 @@ class CBCPaddingOracle:
         print("-------------------------")
         print("Performing attack...")
         print("-------------------------")
-        print(f"Block 0:           \033[92m{iv.hex()}\033[0;0m")
+        print(f"Block 0 / IV:      \033[92m{iv.hex()}\033[0;0m")
         print(f'------------------------------------------------------------')
         # Perform attack on each block
         for i_block in range(1, len(self._blocks)):
@@ -149,6 +149,6 @@ class CBCPaddingOracle:
             iv = block
     
         print(f"Plaintext: {result.hex()}")
-        print(f'Result: {result.decode(encoding="utf-8")}')
+        print(f'Result: \033[96m{result.decode(encoding="utf-8")}\033[0;0m')
 
         return result
