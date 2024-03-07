@@ -1,6 +1,5 @@
 from collections.abc import Callable 
 from math import floor
-import curses
 
 class CBCPaddingOracle:
     def __init__(self, iv_ciphertext: bytearray, block_size: int, oracle: Callable[[bytearray, bytearray], bool]):
@@ -67,47 +66,35 @@ class CBCPaddingOracle:
     def __process_block(self, block: bytearray, i_block: int):
         #Flags
         flag_found_match = False
-
         #Storage values
         zero_iv = [0] * self._block_size
-
         for i_block_byte in range(1, self._block_size + 1):
             # Load padding_iv from zero_iv and apply i_block_byte as offset on the current values.
             padding_iv = [i_block_byte ^ b for b in zero_iv]
-
             for val in range(256):
                 # Assign value and convert the padding_iv to the bytes format.
                 padding_iv[-i_block_byte] = val
                 iv = bytes(padding_iv)
-
                 self.__report_progress(iv, i_block_byte, i_block)
-
                 # Check if value is correct against the oracle
                 if (self._oracle(iv, block)):
-                    
                     # Check for possible edge case
                     if (i_block_byte == 1):
                         padding_iv[-2] ^= 1
                         iv = bytes(padding_iv)
-
                         if (not self._oracle(iv, block)):
                             continue #False positive
-                    
                     # Raise found match flag.
                     flag_found_match = True
                     self.__report_progress(iv, i_block_byte, i_block, True)
                     break
-
             # Check if a match was found. If not raise execption since something is not working as it should.
             if (flag_found_match == False):
                 raise Exception("Value match not found. Check if oracle is working correctly!")
-            
             # Reset flag for next iteration
             flag_found_match = False
-
-            # Append found value to zero_iv at byte location and xor (essentially adding with a kind of overflow protection) the i_block_byte as offset.
+            # Append found value to zero_iv at byte location and xor the i_block_byte as offset.
             zero_iv[-i_block_byte] = i_block_byte ^ val
-
         return zero_iv
 
     def attack(self):
@@ -127,28 +114,27 @@ class CBCPaddingOracle:
         print("-------------------------")
         print(f"Block 0 / IV:      \033[92m{iv.hex()}\033[0;0m")
         print(f'------------------------------------------------------------')
+
+    def attack(self):
+        #Use created blocks
+        iv = self._blocks[0]
+        # Create result variable
+        result = b''
         # Perform attack on each block
         for i_block in range(1, len(self._blocks)):
             # Get block and perform attack on the block
             block = self._blocks[i_block]
             decrypted_block = self.__process_block(block, i_block)
-
             # Report status to console
             self.__report_block_dec_result(bytes(decrypted_block), i_block)
-            
             # Convert the decrypted block to plaintext using the IV.
             plaintext_block = bytes(iv_byte ^ decrypted_block_byte for iv_byte, decrypted_block_byte in zip(iv, decrypted_block))
-
             # Report plaintext version
             self.__report_block_plaintext_result(plaintext_block, i_block)
-            
             # Append to result
             result += plaintext_block
-            
             # Use the current block as the next iv.
             iv = block
-    
         print(f"Plaintext: {result.hex()}")
         print(f'Result: \033[96m{result.decode(encoding="utf-8")}\033[0;0m')
-
         return result
