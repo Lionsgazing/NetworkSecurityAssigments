@@ -1,89 +1,63 @@
 import socket
+from IPV4 import IPV4
+from ICMP import ICMP
 
-def unpack_IPV4_message(message: bytes): 
-    ipv4_version_IHL_len = 1 # Byte
-    ipv4_TOS_len = 1 # Byte
-    ipv4_total_length_len = 2 # Bytes
-    ipv4_identification_len = 2 # Bytes
-    ipv4_flags_fragment_offset_len = 2 # Bytes
-    ipv4_TTL_len = 1 # Byte
-    ipv4_protocol_len = 1 # Byte
-    ipv4_header_checksum_len = 2 # Bytes
-    ipv4_source_addr_len = 4 # Bytes
-    ipv4_dest_addr_len = 4 # Bytes
+from Crypto.Cipher import ChaCha20_Poly1305
+from Crypto.Random import random
 
+from payload import SecurePayload
 
-    # HMM perhaps a stuct.unpack instead of this?
-    len_tracker = 0
-    
-    ipv4_version_IHL = message[len_tracker:len_tracker + ipv4_version_IHL_len]
-    len_tracker += ipv4_version_IHL_len
-
-    ipv4_TOS = message[len_tracker:len_tracker + ipv4_TOS_len]
-    len_tracker += ipv4_TOS_len
-
-    ipv4_total_length = message[len_tracker:len_tracker + ipv4_total_length_len]
-    len_tracker += ipv4_total_length_len
-
-    ipv4_identification = message[len_tracker:len_tracker + ipv4_identification_len]
-    len_tracker += ipv4_identification_len
-
-    ipv4_flags_fragment_offset = message[len_tracker:len_tracker + ipv4_flags_fragment_offset_len]
-    len_tracker += ipv4_flags_fragment_offset_len
-
-    ipv4_TTL = message[len_tracker:len_tracker + ipv4_TTL_len]
-    len_tracker += ipv4_TTL_len
-
-    ipv4_protocol = message[len_tracker:len_tracker + ipv4_protocol_len]
-    len_tracker += ipv4_protocol_len
-
-    ipv4_header_checksum = message[len_tracker:len_tracker + ipv4_header_checksum_len]
-    len_tracker += ipv4_header_checksum_len
-
-    ipv4_source_addr = message[len_tracker:len_tracker + ipv4_source_addr_len]
-    len_tracker += ipv4_source_addr_len
-
-    ipv4_dest_addr = message[len_tracker:len_tracker + ipv4_dest_addr_len]
-    len_tracker += ipv4_dest_addr_len
-
-    return message[len_tracker:]
-
-
-
-
-
-def unpack_ICMP_message(message: bytes):
-    icmp_type_len = 1 # Byte
-    icmp_code_len = 1 # Byte
-    icmp_checksum_len = 2 # Bytes
-
-    # Do unpacking
-    icmp_type = message[:icmp_type_len]
-    icmp_code = message[icmp_type_len:icmp_type_len + icmp_code_len]
-    icmp_checksum = message[icmp_type_len + icmp_code_len:icmp_type_len + icmp_code_len + icmp_checksum_len]
-
-    icmp_payload = message[icmp_type_len + icmp_code_len + icmp_checksum_len:]
-
-    return icmp_type, icmp_code, icmp_checksum, icmp_payload
-
-    
+from secret_key import secret_key
 
 def main():
+    SHOW_DEBUG_INFO = False
 
+    # Calculate the max payload size from the headers
+    MAX_PAYLOAD_SIZE = 2**16-1 - IPV4.HEADER_SIZE - ICMP.HEADER_SIZE
+
+    # Setup socket
     host = ""
     port = 50007
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
     sock.bind((host, port))
 
+    # Setup secure payload class with the correct cipher type and known secret key.
+    secure_payload = SecurePayload(cipher_type="ChaCha20_Poly1305", key=secret_key)
+
     isRunning = True
-
+    msg_counter = 0
     while(isRunning):
-        msg, addr = sock.recvfrom(100)
+        # Recv messages
+        msg, addr = sock.recvfrom(MAX_PAYLOAD_SIZE)
 
-        icmp_type, icmp_code, icmp_checksum, icmp_payload = unpack_ICMP_message(unpack_IPV4_message(msg))
+        # Isolate IPV4 packet
+        ipv4 = IPV4.from_message(msg)
+        
+        # Isolate ICMP packet from IPV4 packet
+        icmp = ICMP.from_message(ipv4.payload)
 
-        print(f'{addr} : {icmp_payload}')
+        # Print result
+        msg_header_str = f'{msg_counter}: Message from {addr[0]}:'
+        msg_seperator_str = f'#' * len(msg_header_str)
+        print(msg_seperator_str) # Only show ip since ICMP does not care about the port used.
+        print(msg_header_str)
+        print(msg_seperator_str)
+
+        if (SHOW_DEBUG_INFO):
+            print(ipv4)
+            print(icmp)
+
+        # Get the ICMP payload and decrypt it with our secure payload class.
+        plaintext = secure_payload.decrypt(icmp.payload, SHOW_DEBUG_INFO)
+
+        print("\nMessage Info")
+        if (SHOW_DEBUG_INFO):
+            print(f'- Ciphertext: {secure_payload.disect_payload(icmp.payload)[-1].hex()}')
+
+        print(f'- Plaintext: {plaintext.decode(encoding='utf-8')}\n')
+
+        msg_counter += 1
 
 if (__name__ == "__main__"):
     main()

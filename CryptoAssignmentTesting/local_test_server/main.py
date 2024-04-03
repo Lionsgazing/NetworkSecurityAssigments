@@ -1,7 +1,7 @@
 import json
 import secrets
 from flask import Flask, request, make_response, redirect, url_for
-from Crypto.Cipher import AES
+from Crypto.Cipher import ChaCha20
 from Crypto.Util.Padding import pad, unpad
 from secret_data import encryption_key, secret
 
