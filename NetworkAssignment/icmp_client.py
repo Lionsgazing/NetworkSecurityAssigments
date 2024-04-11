@@ -3,7 +3,7 @@ import socket
 
 from IPV4 import IPV4
 from ICMP import ICMP
-from payload import SecurePayload
+from SecurePayload import SecurePayload
 from secret_key import secret_key1
 
 def error(msg: str):
@@ -17,7 +17,7 @@ def print_usage():
 
 def main():
     # Debug info flag
-    SHOW_DEBUG_INFO = False
+    SHOW_DEBUG_INFO = True
 
     # Calculate the max payload size from the headers
     MAX_PAYLOAD_SIZE = 2**16-1 - IPV4.HEADER_SIZE - ICMP.HEADER_SIZE

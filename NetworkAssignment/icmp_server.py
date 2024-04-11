@@ -5,13 +5,13 @@ from ICMP import ICMP
 from Crypto.Cipher import ChaCha20_Poly1305
 from Crypto.Random import random
 
-from payload import SecurePayload
+from SecurePayload import SecurePayload
 
 from secret_key import secret_key1
 
 def main():
     # Debug info flag
-    SHOW_DEBUG_INFO = False
+    SHOW_DEBUG_INFO = True
 
     # Calculate the max payload size from the headers
     MAX_PAYLOAD_SIZE = 2**16-1 - IPV4.HEADER_SIZE - ICMP.HEADER_SIZE
@@ -33,6 +33,7 @@ def main():
 
     isRunning = True
     msg_counter = 0
+
     while(isRunning):
         # Recv messages
         msg, addr = sock.recvfrom(MAX_PAYLOAD_SIZE)

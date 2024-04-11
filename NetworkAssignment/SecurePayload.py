@@ -41,6 +41,7 @@ class SecurePayload:
             print(f'- Nonce: {self.cipher.nonce.hex()}')
             print(f'- MAC tag size: {len(MAC_tag)}')
             print(f'- MAC tag: {MAC_tag.hex()}')
+            print(f'- Ciphertext: {ciphertext.hex()}')
 
         return encrypted_payload
     
